@@ -9,6 +9,9 @@ exitd does one thing:
 Sometimes you need to run two or more processes in a container (say nginx and php-fpm) but you still want it
 to behave in a container-friendly manner.
 
+## Installation
+Get the static binary from the [release page][exit releases].
+
 ## Using
 exitd is intended to be used with [tini][tini], [dumb-init][dumb-init] or similar. It's not a replacement
 for a proper `init` since it does none of the signal handling or process reaping
@@ -45,3 +48,4 @@ exec /usr/sbin/php-fpm -y /etc/my-php-fpm-config.conf
 
 [tini]: https://github.com/krallin/tini
 [dumb-init]: https://github.com/Yelp/dumb-init
+[exit releases]: https://github.com/romabysen/exitd/releases
