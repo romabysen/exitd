@@ -25,6 +25,7 @@ func main() {
 	quitchan := make(chan string)
 	sigchan := make(chan os.Signal, 1)
 	procs := make([]*os.Process, 0)
+	gotSignal := false
 
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 	for _, command := range flag.Args() {
@@ -37,6 +38,7 @@ func main() {
 	case msg := <-quitchan:
 		log.Printf("Command \"%s\" exited.", msg)
 	case sig := <-sigchan:
+		gotSignal = true
 		log.Printf("Got signal: %s", sig)
 	}
 
@@ -47,7 +49,12 @@ func main() {
 	if waitTimeout(&wg, 5*time.Second) {
 		log.Println("Some processes did not exit in time.")
 	}
-	log.Fatalln("Done")
+
+	if gotSignal {
+		log.Println("Done")
+	} else {
+		log.Fatalln("Done. One or more processes exited prematurely.")
+	}
 }
 
 func startCommand(command string, quitchan chan<- string) *os.Process {
