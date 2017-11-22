@@ -16,6 +16,16 @@ import (
 
 var wg sync.WaitGroup
 
+type writer struct {
+	io.Writer
+	logname string
+}
+
+func (w writer) Write(b []byte) (n int, err error) {
+	s := []string{time.Now().Format("2006/01/02 15:04:05 "), w.logname, ": "}
+	return w.Writer.Write(append([]byte(strings.Join(s, "")), b...))
+}
+
 func main() {
 	flag.Parse()
 	if len(flag.Args()) < 2 {
@@ -28,8 +38,8 @@ func main() {
 	gotSignal := false
 
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
-	for _, command := range flag.Args() {
-		proc := startCommand(command, quitchan)
+	for index, command := range flag.Args() {
+		proc := startCommand(index, command, quitchan)
 		procs = append(procs, proc)
 		wg.Add(1)
 	}
@@ -57,9 +67,23 @@ func main() {
 	}
 }
 
-func startCommand(command string, quitchan chan<- string) *os.Process {
+func startCommand(index int, command string, quitchan chan<- string) *os.Process {
 	s := strings.Split(command, "/")
 	logname := s[len(s)-1]
+	var logger *log.Logger
+
+	noPrefix := os.Getenv("EXITD_NO_LOG_PREFIX")
+	if noPrefix == "true" {
+		logger = log.New(os.Stdout, "", 0)
+	} else if noPrefix == "first" {
+		if index == 0 {
+			logger = log.New(os.Stdout, "", 0)
+		} else {
+			logger = log.New(&writer{os.Stdout, logname}, "", 0)
+		}
+	} else {
+		logger = log.New(&writer{os.Stdout, logname}, "", 0)
+	}
 
 	cmd := exec.Command(command)
 
@@ -80,7 +104,7 @@ func startCommand(command string, quitchan chan<- string) *os.Process {
 	outbuf := bufio.NewScanner(combined)
 	go func() {
 		for outbuf.Scan() {
-			log.Printf("%s: %s", logname, outbuf.Text())
+			logger.Println(outbuf.Text())
 		}
 		wg.Done()
 		quitchan <- logname
